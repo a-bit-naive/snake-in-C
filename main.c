@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include "raylib.h"
 
 typedef struct {
@@ -13,91 +12,88 @@ typedef enum {
     UP,
     DOWN,
     LEFT,
-    RIGHT,
-    NONE
-} Dir;
+    RIGHT
+} Facing;
 
 typedef struct {
     Vector2 pos;
     Vector2 size;
     int speed;
-    Dir direction;
+    Facing direction;
     Vector2 move;
 } PLAYER;
 
-void resetMovement(PLAYER *p) {
-    p->move.x = 0;
-    p->move.y = 0;
-}
-
-void render(PLAYER *p) {
+void render(PLAYER *p, const GAME_SETTINGS *gs) {
+    ClearBackground(BLACK);
+    Color background[2] = {GRAY, DARKGRAY};
 
     BeginDrawing();
+    // draw background
+        Vector2 location;
+        for (int i = 0; i < gs->tileAmount; i++) {
+            for (int j = 3; j < gs->tileAmount; j++) {
+                location = (Vector2){ i * gs->tileSize.x, j * gs->tileSize.y };
+                DrawRectangleV(location, gs->tileSize, background[(i + j) % 2]);
+            }
+        }
+    
        // draw player
-        DrawRectangleV(p->pos , p->size, GREEN);       
-    EndDrawing();
+        DrawRectangleV(p->pos , p->size, LIME);       
 
+    EndDrawing();
 }
 
-// TODO: use vectormath (module: raymath)
 void handleInput(PLAYER *p) {
-    if (IsKeyPressed(KEY_UP) && p->direction != UP) {
-        resetMovement(p);
-        p->move.y -= p->speed;
-        p->direction = UP;
+    if (IsKeyPressed(KEY_UP)) p->direction = UP;
+    if (IsKeyPressed(KEY_DOWN)) p->direction = DOWN;
+    if (IsKeyPressed(KEY_LEFT)) p->direction = LEFT;
+    if (IsKeyPressed(KEY_RIGHT)) p->direction = RIGHT;
+}
+void makeMove(PLAYER *p, const GAME_SETTINGS *gs) {
+    switch (p->direction) {
+        case UP: 
+            p->pos = (Vector2){ p->pos.x, (p->pos.y - gs->tileSize.y) };
+            break;
+        case DOWN:
+            p->pos = (Vector2){ p->pos.x, (p->pos.y + gs->tileSize.y) };
+            break;
+        case LEFT:
+            p->pos = (Vector2){ (p->pos.x - gs->tileSize.x) , p->pos.y };
+            break;
+       case RIGHT:
+            p->pos = (Vector2){ (p->pos.x + gs->tileSize.x) , p->pos.y };
+            break;
     }
-    if (IsKeyPressed(KEY_DOWN) && p->direction != DOWN) {
-        resetMovement(p);
-        p->move.y += p->speed;
-        p->direction = DOWN;
-    }
-    if (IsKeyPressed(KEY_LEFT) && p->direction != LEFT) {
-        resetMovement(p);
-        p->move.x -= p->speed;
-        p->direction = LEFT;
-    }
-    if (IsKeyPressed(KEY_RIGHT) && p->direction != RIGHT) {
-        resetMovement(p);
-        p->move.x += p->speed;
-        p->direction = RIGHT;
-    }
-    p->pos.x += p->move.x;
-    p->pos.y += p->move.y;
 }
 
 
 int main(void) {
     // configuration
-    GAME_SETTINGS gs = { fps: 60, width: 1600, length: 1024,
-        tileSize: { x: 32, y: 32 }, tileAmount: 50 };
+    GAME_SETTINGS gs = { fps: 60, width: 1024, length: 1024,
+        tileSize: { x: 64, y: 64 }, tileAmount: 16 };
 
-    PLAYER p = { pos: { 400, 200}, size: { 32, 32}, speed: 2,
-        direction: NONE };
+    PLAYER p = {
+        pos: { 776, 776 },
+        size: { 48, 48}, speed: gs.tileSize.x,
+        direction: RIGHT };
 
     SetTargetFPS(gs.fps);
     // configuration end
 
     InitWindow(gs.width, gs.length, "snake");
     
-    // draw background grid
-    Color background[2] = {GRAY, BLACK};
-    BeginDrawing();
-        Vector2 location;
-        int index;
-        for (int i = 0; i < gs.tileAmount; i++) {
-            for (int j = 4; j < gs.tileAmount; j++) {
-                location = (Vector2){ i * gs.tileSize.x, j * gs.tileSize.x };
-                DrawRectangleV(location, gs.tileSize, background[index % 2]);
-                index++;
-            }
-            index++;
-        }
-    EndDrawing();
+    int frames;
 
     while(!WindowShouldClose()) {
-        render(&p);
+        frames++;
+
+        if (frames >= 30) {
+            makeMove(&p, &gs);
+            frames = 0;
+        }
+        render(&p, &gs);
         handleInput(&p);
-    }  
+    }
 
     CloseWindow();
     return 0;
