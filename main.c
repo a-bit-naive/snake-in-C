@@ -5,6 +5,8 @@ typedef struct {
     int fps;
     int width;
     int length;
+    Vector2 tileSize;
+    int tileAmount;
 } GAME_SETTINGS;
 
 typedef enum {
@@ -29,13 +31,15 @@ void resetMovement(PLAYER *p) {
 }
 
 void render(PLAYER *p) {
+
     BeginDrawing();
-        ClearBackground(BLACK);
-        // draw player
-        DrawRectangleV( p->pos , p->size, GREEN);       
+       // draw player
+        DrawRectangleV(p->pos , p->size, GREEN);       
     EndDrawing();
+
 }
 
+// TODO: use vectormath (module: raymath)
 void handleInput(PLAYER *p) {
     if (IsKeyPressed(KEY_UP) && p->direction != UP) {
         resetMovement(p);
@@ -57,22 +61,39 @@ void handleInput(PLAYER *p) {
         p->move.x += p->speed;
         p->direction = RIGHT;
     }
-    
     p->pos.x += p->move.x;
     p->pos.y += p->move.y;
 }
 
 
 int main(void) {
+    // configuration
+    GAME_SETTINGS gs = { fps: 60, width: 1600, length: 1024,
+        tileSize: { x: 32, y: 32 }, tileAmount: 50 };
 
-    GAME_SETTINGS gs = { fps: 60, width: 800, length: 400 };
-    PLAYER p = { pos: { 400, 200}, size: { 32, 32}, speed: 2, direction: NONE};
-
+    PLAYER p = { pos: { 400, 200}, size: { 32, 32}, speed: 2,
+        direction: NONE };
 
     SetTargetFPS(gs.fps);
+    // configuration end
 
     InitWindow(gs.width, gs.length, "snake");
     
+    // draw background grid
+    Color background[2] = {GRAY, BLACK};
+    BeginDrawing();
+        Vector2 location;
+        int index;
+        for (int i = 0; i < gs.tileAmount; i++) {
+            for (int j = 4; j < gs.tileAmount; j++) {
+                location = (Vector2){ i * gs.tileSize.x, j * gs.tileSize.x };
+                DrawRectangleV(location, gs.tileSize, background[index % 2]);
+                index++;
+            }
+            index++;
+        }
+    EndDrawing();
+
     while(!WindowShouldClose()) {
         render(&p);
         handleInput(&p);
