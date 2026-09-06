@@ -64,18 +64,29 @@ void handleInput(PLAYER *p) {
     if (IsKeyPressed(KEY_RIGHT)) p->direction = RIGHT;
 }
 void makeMove(PLAYER *p, const GAME_DATA *gd) {
+    float top = 3 * gd->tileSize.y;
+    float bottom = (gd->tileAmount) * gd->tileSize.y;
+    float left = 0;
+    float right = (gd->tileAmount) * gd->tileSize.x;
+
+    int playerTileOffset = (gd->tileSize.x - p->size.x) / 2;
+
     switch (p->direction) {
         case UP: 
-            p->pos = (Vector2){ p->pos.x, (p->pos.y - gd->tileSize.y) };
+            p->pos.y -= gd->tileSize.y;
+            if (p->pos.y < top) p->pos.y = bottom - gd->tileSize.y + playerTileOffset;
             break;
         case DOWN:
-            p->pos = (Vector2){ p->pos.x, (p->pos.y + gd->tileSize.y) };
+            p->pos.y += gd->tileSize.y;
+            if (p->pos.y > bottom) p->pos.y = top + playerTileOffset;
             break;
         case LEFT:
-            p->pos = (Vector2){ (p->pos.x - gd->tileSize.x) , p->pos.y };
+            p->pos.x -= gd->tileSize.x;
+            if (p->pos.x < left) p->pos.x = right - gd->tileSize.x + playerTileOffset;
             break;
        case RIGHT:
-            p->pos = (Vector2){ (p->pos.x + gd->tileSize.x) , p->pos.y };
+            p->pos.x += gd->tileSize.x;
+            if (p->pos.x > right) p->pos.x = left + playerTileOffset;
             break;
     }
 }
