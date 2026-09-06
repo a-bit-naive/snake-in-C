@@ -58,12 +58,12 @@ void render(PLAYER *p, const GAME_DATA *gd, APPLE *a) {
         DrawRectangleV(a->pos, a->size, a->color);
    
         // draw snake  head
-        DrawRectangleV(p->pos , p->size, LIME);       
+        DrawRectangleV(p->pos , p->size, GREEN);       
 
         // draw snake body
         for (int i = 0; i < p->snake.size; i++) {
             Vector2 *coord = p->snake.data[i];
-            DrawRectangleV(*coord, p->size, GREEN);
+            DrawRectangleV(*coord, p->size, LIME);
         }
 
     EndDrawing();
