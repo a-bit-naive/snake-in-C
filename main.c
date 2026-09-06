@@ -23,6 +23,7 @@ typedef enum {
 
 typedef struct {
     Vector2 pos;
+    Vector2 prevPos; 
     Vector2 size;
     int speed;
     Facing direction;
@@ -69,12 +70,14 @@ void render(PLAYER *p, const GAME_DATA *gd, APPLE *a) {
 }
 
 void handleInput(PLAYER *p) {
-    if (IsKeyPressed(KEY_UP)) p->direction = UP;
-    if (IsKeyPressed(KEY_DOWN)) p->direction = DOWN;
-    if (IsKeyPressed(KEY_LEFT)) p->direction = LEFT;
-    if (IsKeyPressed(KEY_RIGHT)) p->direction = RIGHT;
+    if (IsKeyPressed(KEY_UP) && p->direction != DOWN)    p->direction = UP;
+    if (IsKeyPressed(KEY_DOWN) && p->direction != UP)    p->direction = DOWN;
+    if (IsKeyPressed(KEY_LEFT) && p->direction != RIGHT) p->direction = LEFT;
+    if (IsKeyPressed(KEY_RIGHT) && p->direction != LEFT) p->direction = RIGHT;
 }
 void makeMove(PLAYER *p, const GAME_DATA *gd) {
+    p->prevPos = p->pos;
+
     float top = 3 * gd->tileSize.y;
     float bottom = (gd->tileAmount) * gd->tileSize.y;
     float left = 0;
@@ -150,17 +153,28 @@ void generateNewApple(APPLE *a, PLAYER *p, GAME_DATA *gd) {
 }
 
 void growSnake(PLAYER *p) {
-    Vector2 *coord = malloc(sizeof(*coord));
-    if (coord == NULL) return;
+    Vector2 *newPart = malloc(sizeof(*newPart));
+    if (newPart == NULL) return;
 
-    if (p->snake.size > 0) {
-        Vector2 *tail = p->snake.data[p->snake.size - 1];
-        *coord = *tail;
-    } else {
-        *coord = p->pos;
+    if (p->snake.size == 0) *newPart = p->prevPos;
+    else
+        *newPart = *(Vector2 *)p->snake.data[p->snake.size - 1];
+
+    push(&p->snake, newPart);
+}
+
+bool checkCollisions(PLAYER *p) {
+    Rectangle head = (Rectangle){ p->pos.x, p->pos.y, p->size.x, p->size.y };
+
+    for (int i = 0; i < p->snake.size; i++) {
+        Vector2 *tmp = p->snake.data[i];
+
+        Rectangle bodyPart = (Rectangle){ tmp->x, tmp->y, p->size.x, p->size.y };
+
+        if (CheckCollisionRecs(head, bodyPart)) return true;
     }
 
-    push(&p->snake, coord);
+    return false;
 }
 
 int main(void) { srand(time(NULL));
@@ -190,18 +204,24 @@ int main(void) { srand(time(NULL));
     while(!WindowShouldClose()) {
         frames++;
 
+        render(&p, &gd, &a);
+        handleInput(&p);
+
         if (frames >= 30) {
             moveBody(&p);
             makeMove(&p, &gd);
+            if (checkCollisions(&p)) {
+                // TODO: make a gameover state
+                return 1;
+            }
+
             if (checkApple(&a, &p, &gd)) {
                 gd.score++;
                 growSnake(&p);
                 generateNewApple(&a, &p, &gd);
             }
-            frames = 0;
+        frames = 0;
         }
-        render(&p, &gd, &a);
-        handleInput(&p);
     }
 
     destroyStack(&p.snake);
