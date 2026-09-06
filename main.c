@@ -1,3 +1,6 @@
+#include <stdlib.h>
+#include <time.h>
+
 #include "raylib.h"
 
 typedef struct {
@@ -6,7 +9,9 @@ typedef struct {
     int length;
     Vector2 tileSize;
     int tileAmount;
-} GAME_SETTINGS;
+    int score;
+    int highScore;
+} GAME_DATA;
 
 typedef enum {
     UP,
@@ -23,21 +28,30 @@ typedef struct {
     Vector2 move;
 } PLAYER;
 
-void render(PLAYER *p, const GAME_SETTINGS *gs) {
+typedef struct {
+    Vector2 pos;
+    Vector2 size;
+    Color color;
+} APPLE;
+
+void render(PLAYER *p, const GAME_DATA *gd, APPLE *a) {
     ClearBackground(BLACK);
     Color background[2] = {GRAY, DARKGRAY};
 
     BeginDrawing();
     // draw background
         Vector2 location;
-        for (int i = 0; i < gs->tileAmount; i++) {
-            for (int j = 3; j < gs->tileAmount; j++) {
-                location = (Vector2){ i * gs->tileSize.x, j * gs->tileSize.y };
-                DrawRectangleV(location, gs->tileSize, background[(i + j) % 2]);
+        for (int i = 0; i < gd->tileAmount; i++) {
+            for (int j = 3; j < gd->tileAmount; j++) {
+                location = (Vector2){ i * gd->tileSize.x, j * gd->tileSize.y };
+                DrawRectangleV(location, gd->tileSize, background[(i + j) % 2]);
             }
         }
-    
-       // draw player
+ 
+        // draw apple
+        DrawRectangleV(a->pos, a->size, a->color);
+   
+        // draw player
         DrawRectangleV(p->pos , p->size, LIME);       
 
     EndDrawing();
@@ -49,49 +63,94 @@ void handleInput(PLAYER *p) {
     if (IsKeyPressed(KEY_LEFT)) p->direction = LEFT;
     if (IsKeyPressed(KEY_RIGHT)) p->direction = RIGHT;
 }
-void makeMove(PLAYER *p, const GAME_SETTINGS *gs) {
+void makeMove(PLAYER *p, const GAME_DATA *gd) {
     switch (p->direction) {
         case UP: 
-            p->pos = (Vector2){ p->pos.x, (p->pos.y - gs->tileSize.y) };
+            p->pos = (Vector2){ p->pos.x, (p->pos.y - gd->tileSize.y) };
             break;
         case DOWN:
-            p->pos = (Vector2){ p->pos.x, (p->pos.y + gs->tileSize.y) };
+            p->pos = (Vector2){ p->pos.x, (p->pos.y + gd->tileSize.y) };
             break;
         case LEFT:
-            p->pos = (Vector2){ (p->pos.x - gs->tileSize.x) , p->pos.y };
+            p->pos = (Vector2){ (p->pos.x - gd->tileSize.x) , p->pos.y };
             break;
        case RIGHT:
-            p->pos = (Vector2){ (p->pos.x + gs->tileSize.x) , p->pos.y };
+            p->pos = (Vector2){ (p->pos.x + gd->tileSize.x) , p->pos.y };
             break;
     }
 }
 
+bool checkApple(APPLE *a, const PLAYER *p, const GAME_DATA *gd) {
+    Rectangle appleRect = {
+        a->pos.x,
+        a->pos.y,
+        a->size.x,
+        a->size.y
+    };
 
-int main(void) {
+    Rectangle playerRect = {
+        p->pos.x,
+        p->pos.y,
+        p->size.x,
+        p->size.y
+    };
+
+    return CheckCollisionRecs(appleRect, playerRect);
+}
+
+void generateNewApple(APPLE *a, PLAYER *p, GAME_DATA *gd) {
+    APPLE tmp;
+
+    do {
+        tmp = (APPLE){
+            .pos = (Vector2){ (rand() % gd->tileAmount) * (float)gd->tileSize.x
+                                + (gd->tileSize.x - a->size.x) / 2,
+                     (rand() % gd->tileAmount) * (float)gd->tileSize.y
+                                + (gd->tileSize.y - a->size.y) / 2 },
+            .size = (Vector2){ 42, 42 },
+            .color = RED
+        };
+    } while ((tmp.pos.y < 3 * gd->tileSize.y) || checkApple(&tmp, p, gd));
+
+    a->pos = tmp.pos;
+}
+
+int main(void) { srand(time(NULL));
     // configuration
-    GAME_SETTINGS gs = { fps: 60, width: 1024, length: 1024,
-        tileSize: { x: 64, y: 64 }, tileAmount: 16 };
+    GAME_DATA gd = { .fps = 60, .width = 1024, .length = 1024,
+        .tileSize =  { .x = 64, .y = 64 }, .tileAmount = 16,
+        .score = 0, .highScore = 20 };
 
     PLAYER p = {
-        pos: { 776, 776 },
-        size: { 48, 48}, speed: gs.tileSize.x,
-        direction: RIGHT };
+        .pos = { 584, 584 },
+        .size = { 48, 48}, .speed = gd.tileSize.x,
+        .direction = RIGHT };
 
-    SetTargetFPS(gs.fps);
+    APPLE a = {
+        .pos = { 779, 779 },
+        .size = { 42, 42 },
+        .color = RED
+    };
+
+    SetTargetFPS(gd.fps);
     // configuration end
 
-    InitWindow(gs.width, gs.length, "snake");
+    InitWindow(gd.width, gd.length, "snake");
     
-    int frames;
+    int frames = 0;
 
     while(!WindowShouldClose()) {
         frames++;
 
         if (frames >= 30) {
-            makeMove(&p, &gs);
+            makeMove(&p, &gd);
+            if (checkApple(&a, &p, &gd)) {
+                gd.score++;
+                generateNewApple(&a, &p, &gd);
+            }
             frames = 0;
         }
-        render(&p, &gs);
+        render(&p, &gd, &a);
         handleInput(&p);
     }
 
