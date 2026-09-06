@@ -2,6 +2,7 @@
 #include <time.h>
 
 #include "raylib.h"
+#include "stack.h"
 
 typedef struct {
     int fps;
@@ -26,6 +27,7 @@ typedef struct {
     int speed;
     Facing direction;
     Vector2 move;
+    Stack snake;
 } PLAYER;
 
 typedef struct {
@@ -47,12 +49,21 @@ void render(PLAYER *p, const GAME_DATA *gd, APPLE *a) {
                 DrawRectangleV(location, gd->tileSize, background[(i + j) % 2]);
             }
         }
- 
+        // draw UI
+        DrawText(TextFormat("Score: %d", gd->score), gd->tileSize.x * (gd->tileAmount - 3), 1.5 * gd->tileSize.y, 30, WHITE);
+        DrawText(TextFormat("Best Score: %d", gd->highScore), gd->tileSize.x * 1, 1.5 * gd->tileSize.y, 30, YELLOW);
+
         // draw apple
         DrawRectangleV(a->pos, a->size, a->color);
    
-        // draw player
+        // draw snake  head
         DrawRectangleV(p->pos , p->size, LIME);       
+
+        // draw snake body
+        for (int i = 0; i < p->snake.size; i++) {
+            Vector2 *coord = p->snake.data[i];
+            DrawRectangleV(*coord, p->size, GREEN);
+        }
 
     EndDrawing();
 }
@@ -91,6 +102,18 @@ void makeMove(PLAYER *p, const GAME_DATA *gd) {
     }
 }
 
+void moveBody(PLAYER *p) {
+    for (int i = p->snake.size - 1; i > 0; i--) {
+        Vector2 *curr = p->snake.data[i];
+        Vector2 *prev = p->snake.data[i - 1];
+
+        *curr = *prev;
+    }
+    if (p->snake.size <= 0) return;
+    Vector2 *first = p->snake.data[0];
+    *first = p->pos;
+}
+
 bool checkApple(APPLE *a, const PLAYER *p, const GAME_DATA *gd) {
     Rectangle appleRect = {
         a->pos.x,
@@ -126,11 +149,25 @@ void generateNewApple(APPLE *a, PLAYER *p, GAME_DATA *gd) {
     a->pos = tmp.pos;
 }
 
+void growSnake(PLAYER *p) {
+    Vector2 *coord = malloc(sizeof(*coord));
+    if (coord == NULL) return;
+
+    if (p->snake.size > 0) {
+        Vector2 *tail = p->snake.data[p->snake.size - 1];
+        *coord = *tail;
+    } else {
+        *coord = p->pos;
+    }
+
+    push(&p->snake, coord);
+}
+
 int main(void) { srand(time(NULL));
     // configuration
     GAME_DATA gd = { .fps = 60, .width = 1024, .length = 1024,
         .tileSize =  { .x = 64, .y = 64 }, .tileAmount = 16,
-        .score = 0, .highScore = 20 };
+        .score = 0, .highScore = 0 };
 
     PLAYER p = {
         .pos = { 584, 584 },
@@ -154,9 +191,11 @@ int main(void) { srand(time(NULL));
         frames++;
 
         if (frames >= 30) {
+            moveBody(&p);
             makeMove(&p, &gd);
             if (checkApple(&a, &p, &gd)) {
                 gd.score++;
+                growSnake(&p);
                 generateNewApple(&a, &p, &gd);
             }
             frames = 0;
@@ -165,6 +204,7 @@ int main(void) { srand(time(NULL));
         handleInput(&p);
     }
 
+    destroyStack(&p.snake);
     CloseWindow();
     return 0;
 }
