@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include <time.h>
 
 #include "raylib.h"
@@ -19,6 +20,7 @@ typedef struct {
     int tileAmount;
     int score;
     int highScore;
+    int initHighScore;
     State state;
     Font font;
 } GAME_DATA;
@@ -126,7 +128,7 @@ void moveBody(PLAYER *p) {
     *first = p->pos;
 }
 
-bool checkApple(APPLE *a, const PLAYER *p, const GAME_DATA *gd) {
+bool checkApple(APPLE *a, const PLAYER *p, GAME_DATA *gd) {
     Rectangle appleRect = {
         a->pos.x,
         a->pos.y,
@@ -140,6 +142,10 @@ bool checkApple(APPLE *a, const PLAYER *p, const GAME_DATA *gd) {
         p->size.x,
         p->size.y
     };
+
+    if (gd->score > gd->highScore) {
+        gd->highScore = gd->score;
+    }
 
     return CheckCollisionRecs(appleRect, playerRect);
 }
@@ -222,7 +228,7 @@ void handleTitleScreenInputs(GAME_DATA *gd) {
 }
 
 void renderGameOverScreen(const GAME_DATA *gd, Font font) {
-    const char *newHighScore = gd->score > gd->highScore ? "NEW HIGHSCORE!" : "";
+    const char *newHighScore = gd->score > gd->initHighScore ? "NEW HIGHSCORE!" : "";
 
     float middleofscreen = (gd->tileSize.x * gd->tileAmount / 2);
     const char *gameOverScreen[] = {
@@ -256,17 +262,31 @@ void renderGameOverScreen(const GAME_DATA *gd, Font font) {
     EndDrawing();
 }
 
-void handleGameOverInputs(GAME_DATA *gd) {
-    if (IsKeyPressed(KEY_R)) gd->state = RESTART;
-    if (IsKeyPressed(KEY_Q)) gd->state = TITLE;
+void handleGameOverInputs(GAME_DATA *gd, bool *gameoverInit) {
+    if (IsKeyPressed(KEY_R)) {
+        gd->state = RESTART;
+        gameoverInit = false;
+    }
+    if (IsKeyPressed(KEY_Q)) {
+        gd->state = TITLE;
+        gameoverInit = false;
+    }
 }
 
 GAME_DATA initGameData(void) {
-    // TODO: use file to load in highscore
+    char *config = LoadFileText("./data/config.txt");
+    
+    int highScore = 0;
+
+    if (config != NULL) {
+        sscanf(config, "highscore: %d", &highScore);
+        UnloadFileText(config);
+    }
+
     return (GAME_DATA) {
         .fps = 60, .width = 1024, .length = 1024,
         .tileSize =  { .x = 64, .y = 64 }, .tileAmount = 16,
-        .score = 0, .highScore = 0, .state = TITLE
+        .score = 0, .highScore = highScore, .initHighScore = highScore, .state = TITLE
     };
 }
 
@@ -301,6 +321,8 @@ int main(void) {
     Font font = LoadFontEx("./assets/fonts/ARCADE_N.TTF", 32, 0, 250);
     int frames = 0;
 
+    bool gameOverInit = false;
+
     while(!WindowShouldClose()) {
         if (gd.state == GAME) {
             frames++;
@@ -329,8 +351,21 @@ int main(void) {
         }
 
         if (gd.state == OVER) {
+
+            if (!gameOverInit) {
+                char *config = LoadFileText("./data/config.txt");
+                if (config != NULL) {
+                    char buffer[64];
+                    sprintf(buffer, "highscore: %d", gd.highScore);
+                    SaveFileText("./data/config.txt", buffer);
+                }
+                UnloadFileText(config);
+                gameOverInit = true;
+            }
+            
+
             renderGameOverScreen(&gd, font);
-            handleGameOverInputs(&gd);
+            handleGameOverInputs(&gd, &gameOverInit);
         }
 
         if (gd.state == RESTART) {
@@ -341,6 +376,7 @@ int main(void) {
         }
     }
 
+    UnloadFont(font);
     destroyStack(&p.snake);
     CloseWindow();
     return 0;
