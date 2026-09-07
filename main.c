@@ -4,6 +4,13 @@
 #include "raylib.h"
 #include "stack.h"
 
+typedef enum {
+    TITLE,
+    GAME,
+    OVER,
+    RESTART
+} State;
+
 typedef struct {
     int fps;
     int width;
@@ -12,6 +19,7 @@ typedef struct {
     int tileAmount;
     int score;
     int highScore;
+    State state;
 } GAME_DATA;
 
 typedef enum {
@@ -177,50 +185,116 @@ bool checkCollisions(PLAYER *p) {
     return false;
 }
 
-int main(void) { srand(time(NULL));
-    // configuration
-    GAME_DATA gd = { .fps = 60, .width = 1024, .length = 1024,
+void renderTitleScreen(void) {
+    
+}
+
+void handleTitleScreenInputs(GAME_DATA *gd) {
+    if (IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_ENTER)) {
+        gd->state = GAME;    
+    }
+}
+
+void renderGameOverScreen(const GAME_DATA *gd) {
+    BeginDrawing();
+
+    ClearBackground(BLACK);
+    DrawText(TextFormat("Game Over\n Score: %d", gd->score), 
+            gd->tileAmount * gd->tileSize.x / 2 - 10,
+            gd->tileAmount * gd->tileSize.y / 2, 
+            20, WHITE);
+
+    DrawText("      Press [R] to restart\nPress [ESC] to quit to titlescreen",
+            gd->tileAmount * gd->tileSize.x / 2 - 125,
+            gd->tileAmount * gd->tileSize.y / 2 + 100, 
+            20, WHITE);
+
+    
+
+    EndDrawing();
+}
+
+void handleGameOverInputs(GAME_DATA *gd) {
+    if (IsKeyPressed(KEY_R)) gd->state = RESTART;
+    if (IsKeyPressed(KEY_ESCAPE)) gd->state = TITLE;
+}
+
+GAME_DATA initGameData(void) {
+    // TODO: use file to load in highscore
+    return (GAME_DATA) {
+        .fps = 60, .width = 1024, .length = 1024,
         .tileSize =  { .x = 64, .y = 64 }, .tileAmount = 16,
-        .score = 0, .highScore = 0 };
+        .score = 0, .highScore = 0, .state = GAME
+    };
+}
 
-    PLAYER p = {
+PLAYER initPlayer(const GAME_DATA *gd) {
+    return (PLAYER) {
         .pos = { 584, 584 },
-        .size = { 48, 48}, .speed = gd.tileSize.x,
-        .direction = RIGHT };
+        .size = { 48, 48}, .speed = gd->tileSize.x,
+        .direction = RIGHT
+    };
+}
 
-    APPLE a = {
+APPLE initApple(void) {
+    return (APPLE) {
         .pos = { 779, 779 },
         .size = { 42, 42 },
         .color = RED
     };
+}
+
+int main(void) {
+     // Init Setup
+    srand(time(NULL));
+
+    GAME_DATA gd = initGameData();
+    PLAYER p = initPlayer(&gd);
+    APPLE a = initApple();
 
     SetTargetFPS(gd.fps);
-    // configuration end
-
     InitWindow(gd.width, gd.length, "snake");
+    // Init Setup end
     
     int frames = 0;
 
     while(!WindowShouldClose()) {
-        frames++;
+        if (gd.state == GAME) {
+            frames++;
 
-        render(&p, &gd, &a);
-        handleInput(&p);
+            render(&p, &gd, &a);
+            handleInput(&p);
 
-        if (frames >= 30) {
-            moveBody(&p);
-            makeMove(&p, &gd);
-            if (checkCollisions(&p)) {
-                // TODO: make a gameover state
-                return 1;
+            if (frames >= 30) {
+                moveBody(&p);
+                makeMove(&p, &gd);
+                if (checkCollisions(&p)) {
+                    gd.state = OVER;
+                }
+
+                if (checkApple(&a, &p, &gd)) {
+                    gd.score++;
+                    growSnake(&p);
+                    generateNewApple(&a, &p, &gd);
+                }
+                frames = 0;
             }
+        }
+        if (gd.state == TITLE) {
+            // renderTitleScreen();
+            handleTitleScreenInputs(&gd);
+        }
 
-            if (checkApple(&a, &p, &gd)) {
-                gd.score++;
-                growSnake(&p);
-                generateNewApple(&a, &p, &gd);
-            }
-        frames = 0;
+        if (gd.state == OVER) {
+            renderGameOverScreen(&gd);
+            handleGameOverInputs(&gd);
+        }
+
+        if (gd.state == RESTART) {
+            gd = initGameData();
+            p = initPlayer(&gd);
+            a = initApple();
+            gd.state = GAME;
         }
     }
 
