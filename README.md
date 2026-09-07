@@ -3,6 +3,7 @@ A project I've started to get more comfortable with programming in C\
 Uses Raylib
 
 ![snake_preview](./assets/snake.png "Snake preview")
+![title_screen](./assets/title.png "Titlescreen")
 
 # How to run
 currently you can make it yourself by running:\
