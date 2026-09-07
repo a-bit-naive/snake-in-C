@@ -20,6 +20,7 @@ typedef struct {
     int score;
     int highScore;
     State state;
+    Font font;
 } GAME_DATA;
 
 typedef enum {
@@ -185,8 +186,24 @@ bool checkCollisions(PLAYER *p) {
     return false;
 }
 
-void renderTitleScreen(void) {
-    
+void renderTitleScreen(const GAME_DATA *gd, Font font) {
+    float middleofscreen = (gd->tileSize.x * gd->tileAmount / 2);
+    const char *titlescreen[] = {
+        "Snake in C",
+        "by naively",
+        "Press [ENTER] or [SPACE] to restart"
+    };
+    int h1Size = 50;
+    int h2Size = 35;
+    int h3Size = 25;
+
+    BeginDrawing();
+
+        DrawText(titlescreen[0], middleofscreen - MeasureText(titlescreen[0], h1Size) / 2.0f, middleofscreen *  0.8f, h1Size, LIME);
+        DrawText(titlescreen[1], middleofscreen - MeasureText(titlescreen[1], h3Size) / 2.0f, middleofscreen *  0.95f, h3Size, PURPLE);
+        DrawText(titlescreen[2], middleofscreen - MeasureText(titlescreen[2], h2Size) / 2.0f, middleofscreen *  1.3f, h2Size, WHITE);
+
+    EndDrawing();
 }
 
 void handleTitleScreenInputs(GAME_DATA *gd) {
@@ -224,7 +241,7 @@ GAME_DATA initGameData(void) {
     return (GAME_DATA) {
         .fps = 60, .width = 1024, .length = 1024,
         .tileSize =  { .x = 64, .y = 64 }, .tileAmount = 16,
-        .score = 0, .highScore = 0, .state = GAME
+        .score = 0, .highScore = 0, .state = TITLE
     };
 }
 
@@ -256,6 +273,7 @@ int main(void) {
     InitWindow(gd.width, gd.length, "snake");
     // Init Setup end
     
+    Font fontTtf = LoadFontEx("Assets/fonts/snake.ttf", 32, 0, 250);
     int frames = 0;
 
     while(!WindowShouldClose()) {
@@ -281,7 +299,7 @@ int main(void) {
             }
         }
         if (gd.state == TITLE) {
-            // renderTitleScreen();
+            renderTitleScreen(&gd, fontTtf);
             handleTitleScreenInputs(&gd);
         }
 
