@@ -206,6 +206,7 @@ void renderTitleScreen(const GAME_DATA *gd, Font font) {
     Vector2 size3 = MeasureTextEx(font, titlescreen[2], h2Size, spacing2);
 
     BeginDrawing();
+        ClearBackground(BLACK);
 
         DrawTextEx(font, titlescreen[0],  (Vector2){ middleofscreen -  size1.x / 2.0f, middleofscreen * 0.78f }, h1Size, spacing1, LIME);
         DrawTextEx(font, titlescreen[1], (Vector2){ middleofscreen -  size2.x / 2.0f, middleofscreen *  0.95f }, h3Size, spacing3, PURPLE);
@@ -220,21 +221,37 @@ void handleTitleScreenInputs(GAME_DATA *gd) {
     }
 }
 
-void renderGameOverScreen(const GAME_DATA *gd) {
+void renderGameOverScreen(const GAME_DATA *gd, Font font) {
+    const char *newHighScore = gd->score > gd->highScore ? "NEW HIGHSCORE!" : "";
+
+    float middleofscreen = (gd->tileSize.x * gd->tileAmount / 2);
+    const char *gameOverScreen[] = {
+        "Game Over",
+        TextFormat("Score: %d", gd->score),
+        TextFormat("%s", newHighScore),
+        "      Press [R] to restart\n\nPress [Q] to quit to titlescreen"
+    };
+
+    float h1Size = 60.0f;
+    float h2Size = 25.0f;
+    float h3Size = 20.0f;
+
+    float spacing1 = 5.0f;
+    float spacing2 = 4.0f;
+    float spacing3 = 2.0f;
+
+    Vector2 size1 = MeasureTextEx(font, gameOverScreen[0], h1Size, spacing1);
+    Vector2 size2 = MeasureTextEx(font, gameOverScreen[1], h2Size, spacing2);
+    Vector2 size3 = MeasureTextEx(font, gameOverScreen[2], h2Size, spacing2);
+    Vector2 size4 = MeasureTextEx(font, gameOverScreen[3], h3Size, spacing3);
+
     BeginDrawing();
 
-    ClearBackground(BLACK);
-    DrawText(TextFormat("Game Over\n Score: %d", gd->score), 
-            gd->tileAmount * gd->tileSize.x / 2 - 10,
-            gd->tileAmount * gd->tileSize.y / 2, 
-            20, WHITE);
-
-    DrawText("      Press [R] to restart\nPress [Q] to quit to titlescreen",
-            gd->tileAmount * gd->tileSize.x / 2 - 125,
-            gd->tileAmount * gd->tileSize.y / 2 + 100, 
-            20, WHITE);
-
-    
+        ClearBackground(BLACK);
+        DrawTextEx(font, gameOverScreen[0], (Vector2){ middleofscreen - size1.x / 2.0f, middleofscreen * 0.65 }, h1Size, spacing1, RED);
+        DrawTextEx(font, gameOverScreen[1], (Vector2){ middleofscreen - size2.x / 2.0f, middleofscreen * 1 }, h2Size, spacing2, GREEN);
+        DrawTextEx(font, gameOverScreen[2], (Vector2){ middleofscreen - size3.x / 2.0f, middleofscreen * 1.1 }, h2Size, spacing2, PURPLE);
+        DrawTextEx(font, gameOverScreen[3], (Vector2){ middleofscreen - size4.x / 2.0f, middleofscreen * 1.55 }, h3Size, spacing3, WHITE);
 
     EndDrawing();
 }
@@ -312,7 +329,7 @@ int main(void) {
         }
 
         if (gd.state == OVER) {
-            renderGameOverScreen(&gd);
+            renderGameOverScreen(&gd, font);
             handleGameOverInputs(&gd);
         }
 
