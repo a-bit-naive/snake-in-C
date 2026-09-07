@@ -191,17 +191,25 @@ void renderTitleScreen(const GAME_DATA *gd, Font font) {
     const char *titlescreen[] = {
         "Snake in C",
         "by naively",
-        "Press [ENTER] or [SPACE] to restart"
+        "Press [ENTER] or [SPACE] to start"
     };
-    int h1Size = 50;
-    int h2Size = 35;
-    int h3Size = 25;
+    float h1Size = 60.0f;
+    float h2Size = 25.0f;
+    float h3Size = 20.0f;
+
+    float spacing1 = 5.0f;
+    float spacing2 = 4.0f;
+    float spacing3 = 5.0f;
+
+    Vector2 size1 = MeasureTextEx(font, titlescreen[0], h1Size, spacing1);
+    Vector2 size2 = MeasureTextEx(font, titlescreen[1], h3Size, spacing3);
+    Vector2 size3 = MeasureTextEx(font, titlescreen[2], h2Size, spacing2);
 
     BeginDrawing();
 
-        DrawText(titlescreen[0], middleofscreen - MeasureText(titlescreen[0], h1Size) / 2.0f, middleofscreen *  0.8f, h1Size, LIME);
-        DrawText(titlescreen[1], middleofscreen - MeasureText(titlescreen[1], h3Size) / 2.0f, middleofscreen *  0.95f, h3Size, PURPLE);
-        DrawText(titlescreen[2], middleofscreen - MeasureText(titlescreen[2], h2Size) / 2.0f, middleofscreen *  1.3f, h2Size, WHITE);
+        DrawTextEx(font, titlescreen[0],  (Vector2){ middleofscreen -  size1.x / 2.0f, middleofscreen * 0.78f }, h1Size, spacing1, LIME);
+        DrawTextEx(font, titlescreen[1], (Vector2){ middleofscreen -  size2.x / 2.0f, middleofscreen *  0.95f }, h3Size, spacing3, PURPLE);
+        DrawTextEx(font, titlescreen[2], (Vector2){ middleofscreen -  size3.x / 2.0f, middleofscreen *  1.3f }, h2Size, spacing2, WHITE);
 
     EndDrawing();
 }
@@ -221,7 +229,7 @@ void renderGameOverScreen(const GAME_DATA *gd) {
             gd->tileAmount * gd->tileSize.y / 2, 
             20, WHITE);
 
-    DrawText("      Press [R] to restart\nPress [ESC] to quit to titlescreen",
+    DrawText("      Press [R] to restart\nPress [Q] to quit to titlescreen",
             gd->tileAmount * gd->tileSize.x / 2 - 125,
             gd->tileAmount * gd->tileSize.y / 2 + 100, 
             20, WHITE);
@@ -233,7 +241,7 @@ void renderGameOverScreen(const GAME_DATA *gd) {
 
 void handleGameOverInputs(GAME_DATA *gd) {
     if (IsKeyPressed(KEY_R)) gd->state = RESTART;
-    if (IsKeyPressed(KEY_ESCAPE)) gd->state = TITLE;
+    if (IsKeyPressed(KEY_Q)) gd->state = TITLE;
 }
 
 GAME_DATA initGameData(void) {
@@ -273,7 +281,7 @@ int main(void) {
     InitWindow(gd.width, gd.length, "snake");
     // Init Setup end
     
-    Font fontTtf = LoadFontEx("Assets/fonts/snake.ttf", 32, 0, 250);
+    Font font = LoadFontEx("./assets/fonts/ARCADE_N.TTF", 32, 0, 250);
     int frames = 0;
 
     while(!WindowShouldClose()) {
@@ -283,7 +291,7 @@ int main(void) {
             render(&p, &gd, &a);
             handleInput(&p);
 
-            if (frames >= 30) {
+            if (frames >= 20) {
                 moveBody(&p);
                 makeMove(&p, &gd);
                 if (checkCollisions(&p)) {
@@ -299,7 +307,7 @@ int main(void) {
             }
         }
         if (gd.state == TITLE) {
-            renderTitleScreen(&gd, fontTtf);
+            renderTitleScreen(&gd, font);
             handleTitleScreenInputs(&gd);
         }
 
