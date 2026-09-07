@@ -4,6 +4,13 @@
 #include "raylib.h"
 #include "stack.h"
 
+typedef enum {
+    TITLE,
+    GAME,
+    OVER,
+    RESTART
+} State;
+
 typedef struct {
     int fps;
     int width;
@@ -12,6 +19,8 @@ typedef struct {
     int tileAmount;
     int score;
     int highScore;
+    State state;
+    Font font;
 } GAME_DATA;
 
 typedef enum {
@@ -177,50 +186,158 @@ bool checkCollisions(PLAYER *p) {
     return false;
 }
 
-int main(void) { srand(time(NULL));
-    // configuration
-    GAME_DATA gd = { .fps = 60, .width = 1024, .length = 1024,
+void renderTitleScreen(const GAME_DATA *gd, Font font) {
+    float middleofscreen = (gd->tileSize.x * gd->tileAmount / 2);
+    const char *titlescreen[] = {
+        "Snake in C",
+        "by naively",
+        "Press [ENTER] or [SPACE] to start"
+    };
+    float h1Size = 60.0f;
+    float h2Size = 25.0f;
+    float h3Size = 20.0f;
+
+    float spacing1 = 5.0f;
+    float spacing2 = 4.0f;
+    float spacing3 = 5.0f;
+
+    Vector2 size1 = MeasureTextEx(font, titlescreen[0], h1Size, spacing1);
+    Vector2 size2 = MeasureTextEx(font, titlescreen[1], h3Size, spacing3);
+    Vector2 size3 = MeasureTextEx(font, titlescreen[2], h2Size, spacing2);
+
+    BeginDrawing();
+        ClearBackground(BLACK);
+
+        DrawTextEx(font, titlescreen[0],  (Vector2){ middleofscreen -  size1.x / 2.0f, middleofscreen * 0.78f }, h1Size, spacing1, LIME);
+        DrawTextEx(font, titlescreen[1], (Vector2){ middleofscreen -  size2.x / 2.0f, middleofscreen *  0.95f }, h3Size, spacing3, PURPLE);
+        DrawTextEx(font, titlescreen[2], (Vector2){ middleofscreen -  size3.x / 2.0f, middleofscreen *  1.3f }, h2Size, spacing2, WHITE);
+
+    EndDrawing();
+}
+
+void handleTitleScreenInputs(GAME_DATA *gd) {
+    if (IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_ENTER)) {
+        gd->state = GAME;    
+    }
+}
+
+void renderGameOverScreen(const GAME_DATA *gd, Font font) {
+    const char *newHighScore = gd->score > gd->highScore ? "NEW HIGHSCORE!" : "";
+
+    float middleofscreen = (gd->tileSize.x * gd->tileAmount / 2);
+    const char *gameOverScreen[] = {
+        "Game Over",
+        TextFormat("Score: %d", gd->score),
+        TextFormat("%s", newHighScore),
+        "      Press [R] to restart\n\nPress [Q] to quit to titlescreen"
+    };
+
+    float h1Size = 60.0f;
+    float h2Size = 25.0f;
+    float h3Size = 20.0f;
+
+    float spacing1 = 5.0f;
+    float spacing2 = 4.0f;
+    float spacing3 = 2.0f;
+
+    Vector2 size1 = MeasureTextEx(font, gameOverScreen[0], h1Size, spacing1);
+    Vector2 size2 = MeasureTextEx(font, gameOverScreen[1], h2Size, spacing2);
+    Vector2 size3 = MeasureTextEx(font, gameOverScreen[2], h2Size, spacing2);
+    Vector2 size4 = MeasureTextEx(font, gameOverScreen[3], h3Size, spacing3);
+
+    BeginDrawing();
+
+        ClearBackground(BLACK);
+        DrawTextEx(font, gameOverScreen[0], (Vector2){ middleofscreen - size1.x / 2.0f, middleofscreen * 0.65 }, h1Size, spacing1, RED);
+        DrawTextEx(font, gameOverScreen[1], (Vector2){ middleofscreen - size2.x / 2.0f, middleofscreen * 1 }, h2Size, spacing2, GREEN);
+        DrawTextEx(font, gameOverScreen[2], (Vector2){ middleofscreen - size3.x / 2.0f, middleofscreen * 1.1 }, h2Size, spacing2, PURPLE);
+        DrawTextEx(font, gameOverScreen[3], (Vector2){ middleofscreen - size4.x / 2.0f, middleofscreen * 1.55 }, h3Size, spacing3, WHITE);
+
+    EndDrawing();
+}
+
+void handleGameOverInputs(GAME_DATA *gd) {
+    if (IsKeyPressed(KEY_R)) gd->state = RESTART;
+    if (IsKeyPressed(KEY_Q)) gd->state = TITLE;
+}
+
+GAME_DATA initGameData(void) {
+    // TODO: use file to load in highscore
+    return (GAME_DATA) {
+        .fps = 60, .width = 1024, .length = 1024,
         .tileSize =  { .x = 64, .y = 64 }, .tileAmount = 16,
-        .score = 0, .highScore = 0 };
+        .score = 0, .highScore = 0, .state = TITLE
+    };
+}
 
-    PLAYER p = {
+PLAYER initPlayer(const GAME_DATA *gd) {
+    return (PLAYER) {
         .pos = { 584, 584 },
-        .size = { 48, 48}, .speed = gd.tileSize.x,
-        .direction = RIGHT };
+        .size = { 48, 48}, .speed = gd->tileSize.x,
+        .direction = RIGHT
+    };
+}
 
-    APPLE a = {
+APPLE initApple(void) {
+    return (APPLE) {
         .pos = { 779, 779 },
         .size = { 42, 42 },
         .color = RED
     };
+}
+
+int main(void) {
+     // Init Setup
+    srand(time(NULL));
+
+    GAME_DATA gd = initGameData();
+    PLAYER p = initPlayer(&gd);
+    APPLE a = initApple();
 
     SetTargetFPS(gd.fps);
-    // configuration end
-
     InitWindow(gd.width, gd.length, "snake");
+    // Init Setup end
     
+    Font font = LoadFontEx("./assets/fonts/ARCADE_N.TTF", 32, 0, 250);
     int frames = 0;
 
     while(!WindowShouldClose()) {
-        frames++;
+        if (gd.state == GAME) {
+            frames++;
 
-        render(&p, &gd, &a);
-        handleInput(&p);
+            render(&p, &gd, &a);
+            handleInput(&p);
 
-        if (frames >= 30) {
-            moveBody(&p);
-            makeMove(&p, &gd);
-            if (checkCollisions(&p)) {
-                // TODO: make a gameover state
-                return 1;
+            if (frames >= 20) {
+                moveBody(&p);
+                makeMove(&p, &gd);
+                if (checkCollisions(&p)) {
+                    gd.state = OVER;
+                }
+
+                if (checkApple(&a, &p, &gd)) {
+                    gd.score++;
+                    growSnake(&p);
+                    generateNewApple(&a, &p, &gd);
+                }
+                frames = 0;
             }
+        }
+        if (gd.state == TITLE) {
+            renderTitleScreen(&gd, font);
+            handleTitleScreenInputs(&gd);
+        }
 
-            if (checkApple(&a, &p, &gd)) {
-                gd.score++;
-                growSnake(&p);
-                generateNewApple(&a, &p, &gd);
-            }
-        frames = 0;
+        if (gd.state == OVER) {
+            renderGameOverScreen(&gd, font);
+            handleGameOverInputs(&gd);
+        }
+
+        if (gd.state == RESTART) {
+            gd = initGameData();
+            p = initPlayer(&gd);
+            a = initApple();
+            gd.state = GAME;
         }
     }
 
