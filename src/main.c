@@ -52,11 +52,9 @@ void render(PLAYER *p, const GAME_DATA *gd, APPLE *a) {
     ClearBackground(BLACK);
     Color background[2] = {GRAY, DARKGRAY};
 
-    BeginDrawing();
-    // draw background
         Vector2 location;
         for (int i = 0; i < gd->tileAmount; i++) {
-            for (int j = 3; j < gd->tileAmount; j++) {
+            for (int j = 2; j < gd->tileAmount - 1; j++) {
                 location = (Vector2){ i * gd->tileSize.x, j * gd->tileSize.y };
                 DrawRectangleV(location, gd->tileSize, background[(i + j) % 2]);
             }
@@ -77,7 +75,6 @@ void render(PLAYER *p, const GAME_DATA *gd, APPLE *a) {
             DrawRectangleV(*coord, p->size, LIME);
         }
 
-    EndDrawing();
 }
 
 void handleInput(PLAYER *p) {
@@ -89,8 +86,8 @@ void handleInput(PLAYER *p) {
 void makeMove(PLAYER *p, const GAME_DATA *gd) {
     p->prevPos = p->pos;
 
-    float top = 3 * gd->tileSize.y;
-    float bottom = (gd->tileAmount) * gd->tileSize.y;
+    float top = 2 * gd->tileSize.y;
+    float bottom = (gd->tileAmount - 1) * gd->tileSize.y;
     float left = 0;
     float right = (gd->tileAmount) * gd->tileSize.x;
 
@@ -211,14 +208,12 @@ void renderTitleScreen(const GAME_DATA *gd, Font font) {
     Vector2 size2 = MeasureTextEx(font, titlescreen[1], h3Size, spacing3);
     Vector2 size3 = MeasureTextEx(font, titlescreen[2], h2Size, spacing2);
 
-    BeginDrawing();
         ClearBackground(BLACK);
 
         DrawTextEx(font, titlescreen[0],  (Vector2){ middleofscreen -  size1.x / 2.0f, middleofscreen * 0.78f }, h1Size, spacing1, LIME);
         DrawTextEx(font, titlescreen[1], (Vector2){ middleofscreen -  size2.x / 2.0f, middleofscreen *  0.95f }, h3Size, spacing3, PURPLE);
         DrawTextEx(font, titlescreen[2], (Vector2){ middleofscreen -  size3.x / 2.0f, middleofscreen *  1.3f }, h2Size, spacing2, WHITE);
 
-    EndDrawing();
 }
 
 void handleTitleScreenInputs(GAME_DATA *gd) {
@@ -251,15 +246,11 @@ void renderGameOverScreen(const GAME_DATA *gd, Font font) {
     Vector2 size3 = MeasureTextEx(font, gameOverScreen[2], h2Size, spacing2);
     Vector2 size4 = MeasureTextEx(font, gameOverScreen[3], h3Size, spacing3);
 
-    BeginDrawing();
-
         ClearBackground(BLACK);
         DrawTextEx(font, gameOverScreen[0], (Vector2){ middleofscreen - size1.x / 2.0f, middleofscreen * 0.65 }, h1Size, spacing1, RED);
         DrawTextEx(font, gameOverScreen[1], (Vector2){ middleofscreen - size2.x / 2.0f, middleofscreen * 1 }, h2Size, spacing2, GREEN);
         DrawTextEx(font, gameOverScreen[2], (Vector2){ middleofscreen - size3.x / 2.0f, middleofscreen * 1.1 }, h2Size, spacing2, PURPLE);
         DrawTextEx(font, gameOverScreen[3], (Vector2){ middleofscreen - size4.x / 2.0f, middleofscreen * 1.55 }, h3Size, spacing3, WHITE);
-
-    EndDrawing();
 }
 
 void handleGameOverInputs(GAME_DATA *gd, bool *gameoverInit) {
@@ -306,6 +297,26 @@ APPLE initApple(void) {
     };
 }
 
+Rectangle GetGameDestination(int gameWidth, int gameHeight) {
+    float screenWidth  = (float)GetScreenWidth();
+    float screenHeight = (float)GetScreenHeight();
+
+    float scaleX = screenWidth / gameWidth;
+    float scaleY = screenHeight / gameHeight;
+
+    float scale = (scaleX < scaleY) ? scaleX : scaleY;
+
+    float width  = gameWidth * scale;
+    float height = gameHeight * scale;
+
+    return (Rectangle) {
+        (screenWidth  - width)  / 2.0f,
+        (screenHeight - height) / 2.0f,
+        width,
+        height
+    };
+}
+
 int main(void) {
      // Init Setup
     srand(time(NULL));
@@ -315,7 +326,11 @@ int main(void) {
     APPLE a = initApple();
 
     SetTargetFPS(gd.fps);
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(gd.width, gd.length, "snake");
+    
+    RenderTexture2D target = LoadRenderTexture(gd.width, gd.length);
+    SetTextureFilter(target.texture, TEXTURE_FILTER_POINT);
     // Init Setup end
     
     Font font = LoadFontEx("./assets/fonts/ARCADE_N.TTF", 32, 0, 250);
@@ -324,6 +339,7 @@ int main(void) {
     bool gameOverInit = false;
 
     while(!WindowShouldClose()) {
+
         if (gd.state == GAME) {
             frames++;
 
@@ -374,6 +390,42 @@ int main(void) {
             a = initApple();
             gd.state = GAME;
         }
+
+        BeginTextureMode(target);
+            ClearBackground(BLACK);
+
+            switch (gd.state) {
+                case TITLE: renderTitleScreen(&gd, font); break;
+                case GAME: render(&p, &gd, &a); break;
+                case OVER: renderGameOverScreen(&gd, font); break;
+                default: break;
+            }
+        EndTextureMode();
+        
+        Rectangle destination =
+        GetGameDestination(gd.width, gd.length);
+
+        Rectangle source = {
+            0,
+            0,
+            (float)target.texture.width,
+            -(float)target.texture.height
+        };
+
+        BeginDrawing();
+
+            ClearBackground(BLACK);
+
+            DrawTexturePro(
+                target.texture,
+                source,
+                destination,
+                (Vector2){ 0, 0 },
+                0.0f,
+                WHITE
+            );
+
+        EndDrawing();
     }
 
     UnloadFont(font);

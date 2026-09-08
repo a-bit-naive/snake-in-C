@@ -3,7 +3,7 @@ CFLAGS = -Wall -Wextra
 LDLIBS = -lraylib
 
 TARGET = bin/main
-SRC = main.c stack.c
+SRC = ./src/main.c ./src/stack.c
 OBJ = $(SRC:.c=.o)
 
 $(TARGET): $(OBJ)
