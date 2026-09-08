@@ -12,6 +12,11 @@ typedef enum {
     RESTART
 } State;
 
+typedef enum {
+    NORMAL,
+    HYPER
+} Mode;
+
 typedef struct {
     int fps;
     int width;
@@ -23,6 +28,7 @@ typedef struct {
     int initHighScore;
     State state;
     Font font;
+    Mode mode;
 } GAME_DATA;
 
 typedef enum {
@@ -36,7 +42,7 @@ typedef struct {
     Vector2 pos;
     Vector2 prevPos; 
     Vector2 size;
-    int speed;
+    float speed;
     Facing direction;
     Vector2 move;
     Stack snake;
@@ -63,6 +69,10 @@ void render(PLAYER *p, const GAME_DATA *gd, APPLE *a) {
         DrawText(TextFormat("Score: %d", gd->score), gd->tileSize.x * (gd->tileAmount - 3), 1.5 * gd->tileSize.y, 30, WHITE);
         DrawText(TextFormat("Best Score: %d", gd->highScore), gd->tileSize.x * 1, 1.5 * gd->tileSize.y, 30, YELLOW);
 
+        if (gd->mode == HYPER) {
+            char *maxSpeed = p->speed >= 10.0f ? "(MAX)" : "";
+            DrawText(TextFormat("Current Speed: %.2f %s", p->speed, maxSpeed), gd->tileSize.x * ((float)gd->tileAmount / 2 + 1.85), (gd->tileAmount - 0.5) * gd->tileSize.y, 30, PURPLE);
+        }
         // draw apple
         DrawRectangleV(a->pos, a->size, a->color);
    
@@ -154,12 +164,12 @@ void generateNewApple(APPLE *a, PLAYER *p, GAME_DATA *gd) {
         tmp = (APPLE){
             .pos = (Vector2){ (rand() % gd->tileAmount) * (float)gd->tileSize.x
                                 + (gd->tileSize.x - a->size.x) / 2,
-                     (rand() % gd->tileAmount) * (float)gd->tileSize.y
+                     (rand() % (gd->tileAmount - 3) + 2) * (float)gd->tileSize.y
                                 + (gd->tileSize.y - a->size.y) / 2 },
             .size = (Vector2){ 42, 42 },
             .color = RED
         };
-    } while ((tmp.pos.y < 3 * gd->tileSize.y) || checkApple(&tmp, p, gd));
+    } while (checkApple(&tmp, p, gd));
 
     a->pos = tmp.pos;
 }
@@ -194,7 +204,8 @@ void renderTitleScreen(const GAME_DATA *gd, Font font) {
     const char *titlescreen[] = {
         "Snake in C",
         "by naively",
-        "Press [ENTER] or [SPACE] to start"
+        "Press [ENTER] or [SPACE] to start",
+        "Press [H] for HYPERMODE"
     };
     float h1Size = 60.0f;
     float h2Size = 25.0f;
@@ -207,18 +218,24 @@ void renderTitleScreen(const GAME_DATA *gd, Font font) {
     Vector2 size1 = MeasureTextEx(font, titlescreen[0], h1Size, spacing1);
     Vector2 size2 = MeasureTextEx(font, titlescreen[1], h3Size, spacing3);
     Vector2 size3 = MeasureTextEx(font, titlescreen[2], h2Size, spacing2);
+    Vector2 size4 = MeasureTextEx(font, titlescreen[3], h2Size, spacing2);
 
         ClearBackground(BLACK);
 
         DrawTextEx(font, titlescreen[0],  (Vector2){ middleofscreen -  size1.x / 2.0f, middleofscreen * 0.78f }, h1Size, spacing1, LIME);
         DrawTextEx(font, titlescreen[1], (Vector2){ middleofscreen -  size2.x / 2.0f, middleofscreen *  0.95f }, h3Size, spacing3, PURPLE);
         DrawTextEx(font, titlescreen[2], (Vector2){ middleofscreen -  size3.x / 2.0f, middleofscreen *  1.3f }, h2Size, spacing2, WHITE);
+        DrawTextEx(font, titlescreen[3], (Vector2){ middleofscreen -  size4.x / 2.0f, middleofscreen *  1.5f }, h2Size, spacing2, GRAY);
 
 }
 
 void handleTitleScreenInputs(GAME_DATA *gd) {
     if (IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_ENTER)) {
         gd->state = GAME;    
+    }
+    if (IsKeyPressed(KEY_H)) {
+        gd->state = GAME;
+        gd->mode = HYPER;
     }
 }
 
@@ -230,7 +247,7 @@ void renderGameOverScreen(const GAME_DATA *gd, Font font) {
         "Game Over",
         TextFormat("Score: %d", gd->score),
         TextFormat("%s", newHighScore),
-        "      Press [R] to restart\n\nPress [Q] to quit to titlescreen"
+        "   Press [R] to restart\n\nPress [Q] to quit to titlescreen"
     };
 
     float h1Size = 60.0f;
@@ -277,14 +294,15 @@ GAME_DATA initGameData(void) {
     return (GAME_DATA) {
         .fps = 60, .width = 1024, .length = 1024,
         .tileSize =  { .x = 64, .y = 64 }, .tileAmount = 16,
-        .score = 0, .highScore = highScore, .initHighScore = highScore, .state = TITLE
+        .score = 0, .highScore = highScore, .initHighScore = highScore, 
+        .state = TITLE, .mode = NORMAL
     };
 }
 
 PLAYER initPlayer(const GAME_DATA *gd) {
     return (PLAYER) {
         .pos = { 584, 584 },
-        .size = { 48, 48}, .speed = gd->tileSize.x,
+        .size = { 48, 48}, .speed = 2.5f,
         .direction = RIGHT
     };
 }
@@ -337,16 +355,20 @@ int main(void) {
     int frames = 0;
 
     bool gameOverInit = false;
+    float MAX_SPEED = 10.0f;
+    float moveTimer = 0.0f;
 
     while(!WindowShouldClose()) {
 
         if (gd.state == GAME) {
-            frames++;
+            float dt = GetFrameTime();
+            float moveInterval = 1.0f / p.speed;
 
-            render(&p, &gd, &a);
             handleInput(&p);
 
-            if (frames >= 20) {
+            moveTimer += dt;
+
+            if (moveTimer > moveInterval) {
                 moveBody(&p);
                 makeMove(&p, &gd);
                 if (checkCollisions(&p)) {
@@ -357,17 +379,19 @@ int main(void) {
                     gd.score++;
                     growSnake(&p);
                     generateNewApple(&a, &p, &gd);
+                    if (gd.mode == HYPER) {
+                        if (p.speed < MAX_SPEED)
+                            p.speed += 0.25f;
+                    }
                 }
-                frames = 0;
+                moveTimer -= moveInterval;
             }
         }
         if (gd.state == TITLE) {
-            renderTitleScreen(&gd, font);
             handleTitleScreenInputs(&gd);
         }
 
         if (gd.state == OVER) {
-
             if (!gameOverInit) {
                 char *config = LoadFileText("./data/config.txt");
                 if (config != NULL) {
@@ -380,7 +404,6 @@ int main(void) {
             }
             
 
-            renderGameOverScreen(&gd, font);
             handleGameOverInputs(&gd, &gameOverInit);
         }
 
