@@ -6,6 +6,35 @@
 #include "stack.h"
 
 typedef enum {
+    ACTION_MOVE_UP,
+    ACTION_MOVE_DOWN,
+    ACTION_MOVE_LEFT,
+    ACTION_MOVE_RIGHT,
+    ACTION_START_GAME,
+    ACTION_START_GAME2,
+    ACTION_START_HYPER,
+    ACTION_GOTO_MENU,
+    ACTION_RESTART_GAME,
+    ACTION_SETTINGS_MENU,
+} ActionType;
+
+typedef struct {
+    int key;
+} Action;
+
+static Action bindings[] = {
+    [ACTION_MOVE_UP] =  KEY_A,
+    [ACTION_MOVE_DOWN] = KEY_S,
+    [ACTION_MOVE_LEFT] = KEY_A,
+    [ACTION_MOVE_RIGHT] = KEY_D,
+    [ACTION_START_GAME] = KEY_SPACE,
+    [ACTION_START_GAME2] = KEY_ENTER,
+    [ACTION_GOTO_MENU] = KEY_Q,
+    [ACTION_RESTART_GAME] = KEY_R,
+    [ACTION_SETTINGS_MENU] = KEY_O,
+};
+
+typedef enum {
     TITLE,
     GAME,
     OVER,
@@ -54,6 +83,14 @@ typedef struct {
     Color color;
 } APPLE;
 
+void BindKey(ActionType type, int key) {
+    bindings[type].key = key;
+}
+
+bool IsActionPressed(ActionType type) {
+    return IsKeyPressed(bindings[type].key);
+}
+
 void render(PLAYER *p, const GAME_DATA *gd, APPLE *a) {
     ClearBackground(BLACK);
     Color background[2] = {GRAY, DARKGRAY};
@@ -88,10 +125,10 @@ void render(PLAYER *p, const GAME_DATA *gd, APPLE *a) {
 }
 
 void handleInput(PLAYER *p) {
-    if (IsKeyPressed(KEY_UP) && p->direction != DOWN)    p->direction = UP;
-    if (IsKeyPressed(KEY_DOWN) && p->direction != UP)    p->direction = DOWN;
-    if (IsKeyPressed(KEY_LEFT) && p->direction != RIGHT) p->direction = LEFT;
-    if (IsKeyPressed(KEY_RIGHT) && p->direction != LEFT) p->direction = RIGHT;
+    if (IsActionPressed(ACTION_MOVE_UP) && p->direction != DOWN)    p->direction = UP;
+    if (IsActionPressed(ACTION_MOVE_DOWN) && p->direction != UP)    p->direction = DOWN;
+    if (IsActionPressed(ACTION_MOVE_LEFT) && p->direction != RIGHT) p->direction = LEFT;
+    if (IsActionPressed(ACTION_MOVE_RIGHT) && p->direction != LEFT) p->direction = RIGHT;
 }
 void makeMove(PLAYER *p, const GAME_DATA *gd) {
     p->prevPos = p->pos;
@@ -230,10 +267,10 @@ void renderTitleScreen(const GAME_DATA *gd, Font font) {
 }
 
 void handleTitleScreenInputs(GAME_DATA *gd) {
-    if (IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_ENTER)) {
+    if (IsActionPressed(ACTION_START_GAME)) {
         gd->state = GAME;    
     }
-    if (IsKeyPressed(KEY_H)) {
+    if (IsActionPressed(ACTION_START_HYPER)) {
         gd->state = GAME;
         gd->mode = HYPER;
     }
@@ -271,11 +308,11 @@ void renderGameOverScreen(const GAME_DATA *gd, Font font) {
 }
 
 void handleGameOverInputs(GAME_DATA *gd, bool *gameoverInit) {
-    if (IsKeyPressed(KEY_R)) {
+    if (IsActionPressed(ACTION_RESTART_GAME)) {
         gd->state = RESTART;
         gameoverInit = false;
     }
-    if (IsKeyPressed(KEY_Q)) {
+    if (IsActionPressed(ACTION_GOTO_MENU)) {
         gd->state = TITLE;
         gameoverInit = false;
     }
