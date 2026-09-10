@@ -31,14 +31,15 @@ static Action bindings[] = {
     [ACTION_START_GAME2] = KEY_ENTER,
     [ACTION_GOTO_MENU] = KEY_Q,
     [ACTION_RESTART_GAME] = KEY_R,
-    [ACTION_SETTINGS_MENU] = KEY_O,
+    [ACTION_SETTINGS_MENU] = KEY_S,
 };
 
 typedef enum {
     TITLE,
     GAME,
     OVER,
-    RESTART
+    RESTART,
+    SETTINGS
 } State;
 
 typedef enum {
@@ -87,6 +88,10 @@ void BindKey(ActionType type, int key) {
     bindings[type].key = key;
 }
 
+int GetKeyCode(ActionType type) {
+    return bindings[type].key;
+}
+
 bool IsActionPressed(ActionType type) {
     return IsKeyPressed(bindings[type].key);
 }
@@ -117,7 +122,7 @@ void render(PLAYER *p, const GAME_DATA *gd, APPLE *a) {
         DrawRectangleV(p->pos , p->size, GREEN);       
 
         // draw snake body
-        for (int i = 0; i < p->snake.size; i++) {
+         for (int i = 0; i < p->snake.size; i++) {
             Vector2 *coord = p->snake.data[i];
             DrawRectangleV(*coord, p->size, LIME);
         }
@@ -274,6 +279,9 @@ void handleTitleScreenInputs(GAME_DATA *gd) {
         gd->state = GAME;
         gd->mode = HYPER;
     }
+    if (IsActionPressed(ACTION_SETTINGS_MENU)) {
+        gd->state = SETTINGS;
+    }
 }
 
 void renderGameOverScreen(const GAME_DATA *gd, Font font) {
@@ -372,6 +380,116 @@ Rectangle GetGameDestination(int gameWidth, int gameHeight) {
     };
 }
 
+void handleSettingsInputs(void) {
+    
+}
+
+void renderSettingsMenu(const GAME_DATA *gd, Font font) {
+    char keys[8][16];
+
+    snprintf(keys[0], sizeof keys[0], "%d", GetKeyCode(ACTION_MOVE_UP));
+    snprintf(keys[1], sizeof keys[1], "%d", GetKeyCode(ACTION_MOVE_DOWN));
+    snprintf(keys[2], sizeof keys[2], "%d", GetKeyCode(ACTION_MOVE_LEFT));
+    snprintf(keys[3], sizeof keys[3], "%d", GetKeyCode(ACTION_MOVE_RIGHT));
+    snprintf(keys[4], sizeof keys[4], "%d", GetKeyCode(ACTION_START_GAME));
+    snprintf(keys[5], sizeof keys[5], "%d", GetKeyCode(ACTION_START_HYPER));
+    snprintf(keys[6], sizeof keys[6], "%d", GetKeyCode(ACTION_RESTART_GAME));
+    snprintf(keys[7], sizeof keys[7], "%d", GetKeyCode(ACTION_GOTO_MENU));
+
+    const char *keyrows[8][2] = {
+        {"Move Up", keys[0]},
+        {"Move Down", keys[1]},
+        {"Move Left", keys[2]},
+        {"Move Right", keys[3]},
+        {"Start Game", keys[4]},
+        {"Start Game (HYPER)", keys[5]},
+        {"Restart Game", keys[6]},
+        {"Quit to menu", keys[7]}
+    };
+
+    float screenWidth = gd->tileSize.x * gd->tileAmount;
+    float middleOfScreen = screenWidth / 2.0f;
+
+    float titleSize = 45.0f;
+    float rowSize = 24.0f;
+    float hintSize = 18.0f;
+
+    float titleSpacing = 5.0f;
+    float rowSpacing = 3.0f;
+    float hintSpacing = 2.0f;
+
+    float startY = 120.0f;
+    float rowGap = 45.0f;
+
+    const char *title = "Settings";
+    const char *hint = "Press [R + KEY] to rebind";
+
+    Vector2 titleDimensions =
+        MeasureTextEx(font, title, titleSize, titleSpacing);
+
+    ClearBackground(BLACK);
+
+    DrawTextEx(
+        font,
+        title,
+        (Vector2){
+            middleOfScreen - titleDimensions.x / 2.0f,
+            50.0f
+        },
+        titleSize,
+        titleSpacing,
+        LIME
+    );
+
+    for (int i = 0; i < sizeof(keyrows) / sizeof(keyrows[0]); i++) {
+        Vector2 keySize =
+            MeasureTextEx(font, keyrows[i][1], rowSize, rowSpacing);
+
+        float y = startY + i * rowGap;
+
+        DrawTextEx(
+            font,
+            keyrows[i][0],
+            (Vector2){
+                middleOfScreen - 200.0f,
+                y
+            },
+            rowSize,
+            rowSpacing,
+            WHITE
+        );
+
+        DrawTextEx(
+            font,
+            keyrows[i][1],
+            (Vector2){
+                middleOfScreen + 200.0f - keySize.x,
+                y
+            },
+            rowSize,
+            rowSpacing,
+            GRAY
+        );
+    }
+
+    // Rebind instruction
+    Vector2 hintDimensions =
+        MeasureTextEx(font, hint, hintSize, hintSpacing);
+
+    float hintY = startY + 8 * rowGap + 20.0f;
+
+    DrawTextEx(
+        font,
+        hint,
+        (Vector2){
+            middleOfScreen - hintDimensions.x / 2.0f,
+            hintY
+        },
+        hintSize,
+        hintSpacing,
+        YELLOW
+    );
+}
 int main(void) {
      // Init Setup
     srand(time(NULL));
@@ -428,6 +546,10 @@ int main(void) {
             handleTitleScreenInputs(&gd);
         }
 
+        if (gd.state == SETTINGS) {
+            handleSettingsInputs();
+        }
+
         if (gd.state == OVER) {
             if (!gameOverInit) {
                 char *config = LoadFileText("./data/config.txt");
@@ -458,6 +580,7 @@ int main(void) {
                 case TITLE: renderTitleScreen(&gd, font); break;
                 case GAME: render(&p, &gd, &a); break;
                 case OVER: renderGameOverScreen(&gd, font); break;
+                case SETTINGS: renderSettingsMenu(&gd, font); break;
                 default: break;
             }
         EndTextureMode();
